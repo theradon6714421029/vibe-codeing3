@@ -20,21 +20,31 @@ class FirebaseService
 
     public function __construct()
     {
+        $credentialsJson = config('firebase.credentials_json');
         $credentialsPath = config('firebase.credentials');
 
-        if (!$credentialsPath || !is_file($credentialsPath)) {
-            throw new RuntimeException(
-                'Firebase credentials file not found. ตรวจสอบ FIREBASE_CREDENTIALS ใน .env ' .
-                'และห้ามวางไฟล์นี้ไว้ใน public/ เด็ดขาด'
-            );
-        }
+        if ($credentialsJson) {
+        // โหมด production: อ่านจาก environment variable โดยตรง (ไม่มีไฟล์จริงบนเครื่อง)
+            $credentials = json_decode($credentialsJson, true);
 
-        $this->firestore = new FirestoreClient([
-            'projectId'   => config('firebase.project_id'),
-            'credentials' => $credentialsPath,
-            'databaseId'  => config('firebase.database_id', '(default)'),
-            'transport'   => 'rest',
-        ]);
+            if (!$credentials) {
+            throw new RuntimeException('FIREBASE_CREDENTIALS_JSON ไม่ใช่ JSON ที่ถูกต้อง');
+            }
+    } elseif ($credentialsPath && is_file($credentialsPath)) {
+        // โหมด dev: อ่านจากไฟล์ในเครื่อง
+        $credentials = $credentialsPath;
+    } else {
+        throw new RuntimeException(
+            'ไม่พบ Firebase credentials ตรวจสอบ FIREBASE_CREDENTIALS หรือ FIREBASE_CREDENTIALS_JSON ใน .env'
+        );
+    }
+
+    $this->firestore = new FirestoreClient([
+        'projectId'   => config('firebase.project_id'),
+        'credentials' => $credentials,
+        'databaseId'  => config('firebase.database_id', '(default)'),
+        'transport'   => 'rest',
+    ]);
     }
 
     /** ดึง document เดียวตาม id, คืน null ถ้าไม่พบ (ไม่ throw เพื่อให้ controller ตัดสินใจ 404 เอง) */
